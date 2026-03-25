@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Advanced Tanzania Coordinate Converter & Visualizer</title>
+
+    <!-- External Libraries: Leaflet for Maps, Proj4 for Conversions, FontAwesome for Icons -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+
+    <style>
+      :root {
+        --primary-color: #00796b;
+        --secondary-color: #004d40;
+        --accent-color: #4ecdc4;
+        --background-color: #f4f6f9;
+        --text-color: #333;
+        --light-gray: #e0e0e0;
+        --white: #ffffff;
+        --danger: #d32f2f;
+        --warning: #ffa000;
+        --success: #388e3c;
+        --font-family: "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: var(--font-family);
+        background-color: var(--background-color);
+        color: var(--text-color);
+        line-height: 1.6;
+      }
+
+      .app-container {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      /* Header */
+      .app-header {
+        background: linear-gradient(
+          90deg,
+          var(--secondary-color),
+          var(--primary-color)
+        );
+        color: var(--white);
+        padding: 1rem 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+      }
+      .app-header h1 {
+        font-size: 1.8rem;
+      }
+      .app-header .about-btn {
+        background: var(--accent-color);
+        color: var(--secondary-color);
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background 0.3s;
+      }
+      .app-header .about-btn:hover {
+        background: var(--white);
+      }
+
+      /* Main Content Grid */
+      .main-grid {
+        display: grid;
+        grid-template-columns: 450px 1fr;
+        gap: 1.5rem;
+        padding: 1.5rem;
+        flex-grow: 1;
+      }
+
+      /* Card styles */
+      .card {
+        background: var(--white);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .card-header {
+        padding: 1rem 1.5rem;
+        background-color: #fafafa;
+        border-bottom: 1px solid var(--light-gray);
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--secondary-color);
+      }
+      .card-body {
+        padding: 1.5rem;
+        flex-grow: 1;
+      }
+
+      /* Control Panel Styles */
+      .control-panel .form-group {
+        margin-bottom: 1.25rem;
+      }
+      .control-panel label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+      .control-panel select,
+      .control-panel input[type="text"],
+      .control-panel input[type="number"],
+      .control-panel textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--light-gray);
+        border-radius: 5px;
+        font-size: 1rem;
+      }
+      .control-panel textarea {
+        min-height: 120px;
+        resize: vertical;
+      }
+
+      .tabs {
+        display: flex;
+        border-bottom: 1px solid var(--light-gray);
+        margin-bottom: 1.5rem;
+      }
+      .tab-button {
+        padding: 0.75rem 1.25rem;
+        cursor: pointer;
+        border: none;
+        background: none;
+        font-size: 1rem;
+        font-weight: 500;
+        color: #777;
+        border-bottom: 3px solid transparent;
+        transition: all 0.3s;
+      }
+      .tab-button.active {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
+      }
+      .tab-content {
+        display: none;
+      }
+      .tab-content.active {
+        display: block;
+      }
+
+      #drop-zone {
+        border: 2px dashed var(--light-gray);
+        border-radius: 5px;
+        padding: 2rem;
+        text-align: center;
+        color: #777;
+        transition: all 0.3s;
+      }
+      #drop-zone.dragover {
+        border-color: var(--primary-color);
+        background-color: #e8f5e9;
+      }
+
+      .btn {
+        display: inline-block;
+        padding: 0.8rem 1.5rem;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: bold;
+        transition: all 0.3s;
+        text-align: center;
+      }
+      .btn-primary {
+        background-color: var(--primary-color);
+        color: var(--white);
+        width: 100%;
+      }
+      .btn-primary:hover {
+        background-color: var(--secondary-color);
+      }
+      .btn-secondary {
+        background-color: #6c757d;
+        color: var(--white);
+      }
+
+      /* Results Panel Styles */
+      #map {
+        height: 400px;
+        width: 100%;
+        border-radius: 5px;
+        border: 1px solid var(--light-gray);
+        margin-bottom: 1rem;
+      }
+
+      .results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+      }
+
+      #results-table-container {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+      }
+      th,
+      td {
+        padding: 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid var(--light-gray);
+      }
+      th {
+        background-color: #f5f5f5;
+        font-weight: 600;
+      }
+
+      #results-placeholder {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #777;
+      }
+      #results-placeholder i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: var(--light-gray);
+      }
+
+      .alert {
+        padding: 1rem;
+        margin-top: 1rem;
+        border-radius: 5px;
+        border: 1px solid transparent;
+      }
+      .alert-danger {
+        color: #721c24;
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+      }
+      .alert-success {
+        color: #155724;
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+      }
+      .alert-warning {
+        color: #856404;
+        background-color: #fff3cd;
+        border-color: #ffeeba;
+      }
+
+      /* Modal Styles */
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.5);
+        align-items: center;
+        justify-content: center;
+      }
+      .modal.active {
+        display: flex;
+      }
+      .modal-content {
+        background-color: var(--white);
+        margin: auto;
+        padding: 0;
+        border-radius: 8px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        width: 90%;
+        max-width: 700px;
+        animation: slideIn 0.3s ease-out;
+      }
+      .modal-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--light-gray);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background-color: var(--secondary-color);
+        color: var(--white);
+        border-radius: 8px 8px 0 0;
+      }
+      .modal-header h2 {
+        font-size: 1.5rem;
+      }
+      .close-btn {
+        color: var(--white);
+        font-size: 2rem;
+        font-weight: bold;
+        cursor: pointer;
+        background: none;
+        border: none;
+      }
+      .modal-body {
+        padding: 1.5rem;
+        max-height: 70vh;
+        overflow-y: auto;
+      }
+      .modal-body h3 {
+        color: var(--primary-color);
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+      }
+      .modal-body code {
+        background: #eee;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+
+      @keyframes slideIn {
+        from {
+          transform: translateY(-30px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      /* Responsive Design */
+      @media (max-width: 992px) {
+        .main-grid {
+          grid-template-columns: 1fr;
+        }
+        .app-header h1 {
+          font-size: 1.4rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-container">
+      <header class="app-header">
+        <h1>
+          <i class="fa-solid fa-earth-africa"></i> Advanced Coordinate Converter
+        </h1>
+        <button class="about-btn" id="about-btn">
+          <i class="fa-solid fa-circle-info"></i> About
+        </button>
+      </header>
+
+      <main class="main-grid">
+        <!-- Left Panel: Controls -->
+        <div class="card control-panel">
+          <div class="card-header">
+            <i class="fa-solid fa-sliders"></i> Conversion Controls
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label for="zone-select">UTM Zone</label>
+              <select id="zone-select">
+                <option value="32736" selected>
+                  UTM Zone 36S (EPSG:32736)
+                </option>
+                <option value="32737">UTM Zone 37S (EPSG:32737)</option>
+              </select>
+            </div>
+
+            <div class="tabs">
+              <button class="tab-button active" data-tab="file">
+                <i class="fa-solid fa-file-csv"></i> File Upload
+              </button>
+              <button class="tab-button" data-tab="manual">
+                <i class="fa-solid fa-keyboard"></i> Manual Entry
+              </button>
+              <button class="tab-button" data-tab="paste">
+                <i class="fa-solid fa-paste"></i> Paste Data
+              </button>
+            </div>
+
+            <!-- Tab Content -->
+            <div id="file-content" class="tab-content active">
+              <div class="form-group">
+                <label>Upload or Drop a CSV File</label>
+                <div id="drop-zone">
+                  <p>Drag & Drop file here</p>
+                  <p>or</p>
+                  <input type="file" id="csv-file" accept=".csv" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Column Mapping (optional)</label>
+                <small
+                  >Auto-detects headers and swaps columns if values look
+                  swapped. Use this to override.</small
+                >
+                <div style="display: flex; gap: 10px; margin-top: 5px">
+                  <input
+                    type="number"
+                    id="easting-col"
+                    placeholder="Easting Col #"
+                    min="1"
+                  />
+                  <input
+                    type="number"
+                    id="northing-col"
+                    placeholder="Northing Col #"
+                    min="1"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div id="manual-content" class="tab-content">
+              <div class="form-group">
+                <label for="manual-easting">Easting (X-coordinate)</label>
+                <input
+                  type="text"
+                  id="manual-easting"
+                  placeholder="e.g., 181926"
+                />
+              </div>
+              <div class="form-group">
+                <label for="manual-northing">Northing (Y-coordinate)</label>
+                <input
+                  type="text"
+                  id="manual-northing"
+                  placeholder="e.g., 9329891"
+                />
+              </div>
+            </div>
+
+            <div id="paste-content" class="tab-content">
+              <div class="form-group">
+                <label for="pasted-data"
+                  >Paste coordinates from spreadsheet</label
+                >
+                <textarea
+                  id="pasted-data"
+                  placeholder="Paste columns of Easting and Northing here..."
+                ></textarea>
+              </div>
+            </div>
+
+            <button class="btn btn-primary" id="convert-btn">
+              <i class="fa-solid fa-retweet"></i> Convert Coordinates
+            </button>
+            <div id="messages"></div>
+          </div>
+        </div>
+
+        <!-- Right Panel: Results & Map -->
+        <div class="card results-panel">
+          <div class="card-header">
+            <i class="fa-solid fa-map-location-dot"></i> Results & Visualization
+          </div>
+          <div class="card-body">
+            <div id="map"></div>
+            <div class="results-header">
+              <h3 id="results-title">Results</h3>
+              <div id="export-buttons" style="display: none">
+                <button class="btn btn-secondary" id="copy-btn">
+                  <i class="fa-solid fa-copy"></i> Copy
+                </button>
+                <button class="btn btn-secondary" id="download-btn">
+                  <i class="fa-solid fa-download"></i> Download CSV
+                </button>
+              </div>
+            </div>
+            <div id="results-table-container">
+              <div id="results-placeholder">
+                <i class="fa-regular fa-paper-plane"></i>
+                <p>Your converted coordinates will appear here.</p>
+              </div>
+              <table id="results-table" style="display: none">
+                <thead>
+                  <tr>
+                    <th>Easting (UTM)</th>
+                    <th>Northing (UTM)</th>
+                    <th>Latitude</th>
+                    <th>Longitude</th>
+                  </tr>
+                </thead>
+                <tbody id="results-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- About Modal -->
+    <div id="about-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>About this Converter</h2>
+          <button class="close-btn" id="close-modal-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p>
+            This tool converts geographic coordinates between the Universal
+            Transverse Mercator (UTM) system used for mapping in Tanzania and
+            the standard WGS84 (Latitude/Longitude) system used by GPS and web
+            maps.
+          </p>
+
+          <h3>Data Validation</h3>
+          <p>
+            To prevent common data entry errors, this tool automatically
+            validates that the converted coordinates fall within the
+            geographical boundaries of Tanzania. Any points that fall outside
+            this area will be ignored and a warning message will be displayed.
+          </p>
+
+          <h3>Coordinate Systems</h3>
+          <ul>
+            <li>
+              <strong>WGS84 (EPSG:4326):</strong> The global standard for GPS.
+              Coordinates are expressed in decimal degrees of Latitude and
+              Longitude.
+            </li>
+            <li>
+              <strong>UTM Zone 36S (EPSG:32736):</strong> Covers western
+              Tanzania. Coordinates are in meters (Easting and Northing).
+            </li>
+            <li>
+              <strong>UTM Zone 37S (EPSG:32737):</strong> Covers eastern
+              Tanzania. Also in meters.
+            </li>
+          </ul>
+
+          <h3>Common Data Issue: Swapped Columns</h3>
+          <p>
+            It is very common for data exports to have mislabeled or swapped
+            columns. For instance, a column named <code>Easting</code> might
+            contain Northing values (large 7-digit numbers), while the
+            <code>Northing</code> column contains Easting values (smaller
+            6-digit numbers).
+          </p>
+          <p>
+            <strong>This tool automatically detects this problem.</strong> It
+            checks the magnitude of the numbers and will swap them internally if
+            they appear to be in the wrong columns, ensuring a correct
+            conversion. You can override this behavior by using the **Column
+            Mapping** input fields.
+          </p>
+
+          <h3>Usage</h3>
+          <ul>
+            <li>
+              <strong>File Upload:</strong> Upload a CSV file. The first row
+              must be headers.
+            </li>
+            <li>
+              <strong>Manual Entry:</strong> Type a single Easting/Northing pair
+              for a quick conversion.
+            </li>
+            <li>
+              <strong>Paste Data:</strong> Copy columns directly from Excel or
+              Google Sheets and paste them into the text area.
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // --- PROJ4 DEFINITIONS ---
+      proj4.defs([
+        [
+          "EPSG:32736",
+          "+proj=utm +zone=36 +south +datum=WGS84 +units=m +no_defs",
+        ],
+        [
+          "EPSG:32737",
+          "+proj=utm +zone=37 +south +datum=WGS84 +units=m +no_defs",
+        ],
+        ["EPSG:4326", "+proj=longlat +datum=WGS84 +no_defs"],
+      ]);
+
+      // --- GEOGRAPHIC BOUNDS FOR VALIDATION ---
+      const TANZANIA_BOUNDS = {
+        minLat: -12.0, // Southernmost point
+        maxLat: -0.9, // Northernmost point
+        minLon: 29.5, // Westernmost point
+        maxLon: 40.5, // Easternmost point
+      };
+
+      // --- DOM ELEMENTS ---
+      const zoneSelect = document.getElementById("zone-select");
+      const convertBtn = document.getElementById("convert-btn");
+      const messagesDiv = document.getElementById("messages");
+      const resultsTable = document.getElementById("results-table");
+      const resultsBody = document.getElementById("results-body");
+      const resultsPlaceholder = document.getElementById("results-placeholder");
+      const exportButtons = document.getElementById("export-buttons");
+      const copyBtn = document.getElementById("copy-btn");
+      const downloadBtn = document.getElementById("download-btn");
+      const dropZone = document.getElementById("drop-zone");
+      const fileInput = document.getElementById("csv-file");
+
+      let map;
+      let mapMarkers = [];
+      let convertedData = [];
+
+      // --- INITIALIZATION ---
+      document.addEventListener("DOMContentLoaded", () => {
+        initMap();
+        initTabs();
+        initDragAndDrop();
+        initEventListeners();
+
+        // --- PRE-POPULATE WITH DATA FROM THE USER'S IMAGE ---
+        const initialData = [
+          [181926, 9329891],
+          [182557, 9329254],
+          [181764, 9327809],
+          [179044, 9329756],
+          [175450, 9332722],
+          [172362, 9338477],
+          [174154, 9339256],
+          [178655, 9334562],
+        ];
+        document.getElementById("results-title").textContent =
+          "Sample Data from Image";
+        performConversion(initialData);
+      });
+
+      function initMap() {
+        map = L.map("map").setView([-6.369, 34.8888], 5); // Center of Tanzania
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        }).addTo(map);
+      }
+
+      function initTabs() {
+        const tabButtons = document.querySelectorAll(".tab-button");
+        const tabContents = document.querySelectorAll(".tab-content");
+        tabButtons.forEach((button) => {
+          button.addEventListener("click", () => {
+            tabButtons.forEach((btn) => btn.classList.remove("active"));
+            button.classList.add("active");
+            tabContents.forEach((content) =>
+              content.classList.remove("active")
+            );
+            document
+              .getElementById(button.dataset.tab + "-content")
+              .classList.add("active");
+          });
+        });
+      }
+
+      function initDragAndDrop() {
+        dropZone.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          dropZone.classList.add("dragover");
+        });
+        dropZone.addEventListener("dragleave", () =>
+          dropZone.classList.remove("dragover")
+        );
+        dropZone.addEventListener("drop", (e) => {
+          e.preventDefault();
+          dropZone.classList.remove("dragover");
+          if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            handleConversion();
+          }
+        });
+        fileInput.addEventListener("change", handleConversion);
+      }
+
+      function initEventListeners() {
+        convertBtn.addEventListener("click", handleConversion);
+        document
+          .getElementById("about-btn")
+          .addEventListener("click", () =>
+            document.getElementById("about-modal").classList.add("active")
+          );
+        document
+          .getElementById("close-modal-btn")
+          .addEventListener("click", () =>
+            document.getElementById("about-modal").classList.remove("active")
+          );
+        window.addEventListener("click", (event) => {
+          if (event.target === document.getElementById("about-modal")) {
+            document.getElementById("about-modal").classList.remove("active");
+          }
+        });
+        downloadBtn.addEventListener("click", downloadCSV);
+        copyBtn.addEventListener("click", copyResults);
+      }
+
+      function handleConversion() {
+        clearMessages();
+        const activeTab =
+          document.querySelector(".tab-button.active").dataset.tab;
+        let dataPromise;
+
+        switch (activeTab) {
+          case "file":
+            const file = fileInput.files[0];
+            if (!file) {
+              showError("Please select a file to upload.");
+              return;
+            }
+            dataPromise = parseCSVFile(file);
+            break;
+          case "manual":
+            dataPromise = parseManualInput();
+            break;
+          case "paste":
+            dataPromise = parsePastedData();
+            break;
+        }
+
+        dataPromise
+          .then((dataToProcess) => {
+            if (dataToProcess && dataToProcess.length > 0) {
+              document.getElementById("results-title").textContent =
+                "Conversion Results";
+              performConversion(dataToProcess);
+            } else if (dataToProcess) {
+              showError("No valid data found to process.");
+            }
+          })
+          .catch((err) => showError(err.message));
+      }
+
+      function parseCSVFile(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const lines = e.target.result
+                .split("\n")
+                .filter((line) => line.trim() !== "");
+              if (lines.length < 2)
+                reject(
+                  new Error("CSV needs a header and at least one data row.")
+                );
+
+              const headers = lines[0]
+                .split(",")
+                .map((h) => h.trim().toLowerCase().replace(/"/g, ""));
+              const { eastingIndex, northingIndex } = findCoordinateIndices(
+                headers,
+                lines.slice(1)
+              );
+
+              const data = lines.slice(1).map((line) => {
+                const values = line.split(",");
+                return [values[eastingIndex], values[northingIndex]];
+              });
+              resolve(data);
+            } catch (err) {
+              reject(
+                new Error(
+                  "Failed to parse CSV file. Check formatting or column names."
+                )
+              );
+            }
+          };
+          reader.onerror = () => reject(new Error("Error reading file."));
+          reader.readAsText(file);
+        });
+      }
+
+      function parseManualInput() {
+        return new Promise((resolve, reject) => {
+          const easting = document.getElementById("manual-easting").value;
+          const northing = document.getElementById("manual-northing").value;
+          if (!easting || !northing) {
+            reject(new Error("Please enter both Easting and Northing values."));
+            return;
+          }
+          resolve([[easting, northing]]);
+        });
+      }
+
+      function parsePastedData() {
+        return new Promise((resolve, reject) => {
+          const text = document.getElementById("pasted-data").value;
+          if (!text.trim()) {
+            reject(new Error("Paste data text area is empty."));
+            return;
+          }
+          const lines = text.trim().split("\n");
+          const data = lines.map((line) =>
+            line.split(/\s+|,/).filter((v) => v)
+          );
+          if (data.some((row) => row.length < 2)) {
+            reject(
+              new Error("Pasted data has rows with fewer than two columns.")
+            );
+            return;
+          }
+          resolve(data.map((row) => [row[0], row[1]]));
+        });
+      }
+
+      function findCoordinateIndices(headers, dataRows) {
+        let eastingIndex = -1,
+          northingIndex = -1;
+
+        const manualEastingCol = parseInt(
+          document.getElementById("easting-col").value,
+          10
+        );
+        const manualNorthingCol = parseInt(
+          document.getElementById("northing-col").value,
+          10
+        );
+        if (manualEastingCol > 0 && manualNorthingCol > 0) {
+          return {
+            eastingIndex: manualEastingCol - 1,
+            northingIndex: manualNorthingCol - 1,
+          };
+        }
+
+        const eastingTerms = ["easting", "east", "x"];
+        const northingTerms = ["northing", "north", "y"];
+        headers.forEach((h, i) => {
+          if (eastingTerms.some((term) => h.includes(term))) eastingIndex = i;
+          if (northingTerms.some((term) => h.includes(term))) northingIndex = i;
+        });
+
+        if (eastingIndex === -1 || northingIndex === -1) {
+          throw new Error(
+            "Could not automatically find Easting/Northing columns. Please use the 'Column Mapping' option to specify them manually."
+          );
+        }
+
+        if (dataRows && dataRows.length > 0) {
+          const firstDataRow = dataRows[0].split(",");
+          if (firstDataRow.length > Math.max(eastingIndex, northingIndex)) {
+            const valInEastingCol = parseFloat(firstDataRow[eastingIndex]);
+            const valInNorthingCol = parseFloat(firstDataRow[northingIndex]);
+            if (valInEastingCol > 1000000 && valInNorthingCol < 1000000) {
+              console.warn(
+                "Smart Swap Triggered: Detected Northing values in the 'Easting' column. Swapping columns."
+              );
+              [eastingIndex, northingIndex] = [northingIndex, eastingIndex];
+            }
+          }
+        }
+
+        return { eastingIndex, northingIndex };
+      }
+
+      function isWithinTanzania(lat, lon) {
+        return (
+          lat >= TANZANIA_BOUNDS.minLat &&
+          lat <= TANZANIA_BOUNDS.maxLat &&
+          lon >= TANZANIA_BOUNDS.minLon &&
+          lon <= TANZANIA_BOUNDS.maxLon
+        );
+      }
+
+      function performConversion(data) {
+        const sourceCRS = `EPSG:${zoneSelect.value}`;
+        const destCRS = "EPSG:4326";
+        const validPoints = [],
+          invalidPoints = [];
+
+        data.forEach((row) => {
+          const easting = parseFloat(row[0]);
+          const northing = parseFloat(row[1]);
+          if (!isNaN(easting) && !isNaN(northing)) {
+            try {
+              const [lon, lat] = proj4(sourceCRS, destCRS, [easting, northing]);
+              if (isWithinTanzania(lat, lon)) {
+                validPoints.push({ easting, northing, lat, lon });
+              } else {
+                invalidPoints.push({ easting, northing });
+                console.warn(
+                  `Point (${easting}, ${northing}) converted to (${lat.toFixed(
+                    4
+                  )}, ${lon.toFixed(4)}), which is outside Tanzania.`
+                );
+              }
+            } catch (e) {
+              console.error(`Could not convert row: ${row}`, e);
+            }
+          }
+        });
+
+        convertedData = validPoints;
+
+        let messageHtml = "";
+        if (validPoints.length > 0) {
+          messageHtml += `<div class="alert alert-success">Successfully converted ${validPoints.length} coordinate pairs.</div>`;
+        }
+        if (invalidPoints.length > 0) {
+          messageHtml += `<div class="alert alert-warning">Ignored ${invalidPoints.length} point(s) that were outside of Tanzania's boundaries after conversion.</div>`;
+        }
+        messagesDiv.innerHTML = messageHtml;
+
+        if (validPoints.length > 0) {
+          displayResults();
+        } else {
+          if (data.length > 0) {
+            showError(
+              `No valid coordinates found within Tanzania's boundaries from the ${data.length} provided points. Check if the correct UTM Zone is selected.`
+            );
+          }
+          clearResults();
+        }
+      }
+
+      function displayResults() {
+        resultsBody.innerHTML = "";
+        mapMarkers.forEach((marker) => marker.remove());
+        mapMarkers = [];
+        const latLngs = [];
+
+        convertedData.forEach((item) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `<td>${item.easting.toLocaleString()}</td><td>${item.northing.toLocaleString()}</td><td>${item.lat.toFixed(
+            6
+          )}</td><td>${item.lon.toFixed(6)}</td>`;
+          resultsBody.appendChild(row);
+          const latLng = [item.lat, item.lon];
+          latLngs.push(latLng);
+          const marker = L.marker(latLng)
+            .addTo(map)
+            .bindPopup(
+              `<b>Lat:</b> ${item.lat.toFixed(
+                6
+              )}<br><b>Lon:</b> ${item.lon.toFixed(6)}`
+            );
+          mapMarkers.push(marker);
+        });
+
+        resultsPlaceholder.style.display = "none";
+        resultsTable.style.display = "table";
+        exportButtons.style.display = "flex";
+        if (latLngs.length > 0) {
+          map.fitBounds(latLngs, { padding: [50, 50], maxZoom: 15 });
+        }
+      }
+
+      function clearResults() {
+        resultsBody.innerHTML = "";
+        resultsPlaceholder.style.display = "block";
+        resultsTable.style.display = "none";
+        exportButtons.style.display = "none";
+        mapMarkers.forEach((marker) => marker.remove());
+        mapMarkers = [];
+      }
+
+      function showError(message) {
+        messagesDiv.innerHTML = `<div class="alert alert-danger">${message}</div>`;
+      }
+      function clearMessages() {
+        messagesDiv.innerHTML = "";
+      }
+
+      function downloadCSV() {
+        let csvContent =
+          "data:text/csv;charset=utf-8,easting,northing,latitude,longitude\n";
+        convertedData.forEach((row) => {
+          csvContent += `${row.easting},${row.northing},${row.lat.toFixed(
+            6
+          )},${row.lon.toFixed(6)}\n`;
+        });
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "converted_coordinates.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      function copyResults() {
+        let textContent = "Easting\tNorthing\tLatitude\tLongitude\n";
+        convertedData.forEach((row) => {
+          textContent += `${row.easting}\t${row.northing}\t${row.lat.toFixed(
+            6
+          )}\t${row.lon.toFixed(6)}\n`;
+        });
+        navigator.clipboard.writeText(textContent).then(
+          () => {
+            showSuccess("Results copied to clipboard!");
+          },
+          () => {
+            showError("Failed to copy results.");
+          }
+        );
+      }
+
+      function showSuccess(message) {
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = `<div class="alert alert-success">${message}</div>`;
+        messagesDiv.appendChild(tempDiv);
+        setTimeout(() => tempDiv.remove(), 3000);
+      }
+    </script>
+  </body>
+</html>
